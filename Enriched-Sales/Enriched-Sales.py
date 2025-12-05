@@ -48,7 +48,7 @@ enriched_sales = spark.sql("""
         s.Salesperson
     FROM fact_sales f
     LEFT JOIN dim_product p ON f.ProductKey = p.ProductKey
-    LEFT JOIN dim_region r ON f.SalesTerritoryKey = r.SalesTerritoryKey + 1
+    LEFT JOIN dim_region r ON f.SalesTerritoryKey = r.SalesTerritoryKey
     LEFT JOIN dim_reseller re ON f.ResellerKey = re.ResellerKey
     LEFT JOIN dim_salesperson s ON f.EmployeeKey = s.EmployeeKey
 """)

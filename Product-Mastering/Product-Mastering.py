@@ -101,8 +101,8 @@ fuzzy_scored = fuzzy_candidates \
         .otherwise(0)
     )
 
-# BUG: Threshold too low (0.3 instead of 0.7)
-FUZZY_THRESHOLD = 0.3
+# FIX: Increased threshold from 0.3 to 0.7 to prevent low-confidence false matches
+FUZZY_THRESHOLD = 0.7
 
 fuzzy_matches = fuzzy_scored \
     .filter(col("similarity") >= FUZZY_THRESHOLD) \

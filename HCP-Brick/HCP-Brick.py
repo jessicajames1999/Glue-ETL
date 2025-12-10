@@ -139,22 +139,19 @@ fuzzy_count = fuzzy_matches.count()
 print(f"Fuzzy city matches: {fuzzy_count}")
 
 # ============================================
-# STEP 5: State-level fallback (assign to largest brick in state)
+# STEP 5: State-level fallback (assign to first brick in state)
 # ============================================
 print("\n=== Step 5: State fallback matching ===")
 
 fuzzy_matched_ids = fuzzy_matches.select("hcp_id")
 still_unmatched = unmatched_hcp.join(fuzzy_matched_ids, on="hcp_id", how="left_anti")
 
-# BUG INTRODUCED: Some HCPs get mapped to wrong state's brick due to missing state filter
-# The join below should filter by state but doesn't for some records
+# FIXED: Always require state equality for STATE_FALLBACK matching
+# This ensures HCPs are only mapped to bricks within their own state
 state_fallback = still_unmatched.alias("hcp") \
     .join(
         brick_cities.alias("brick"),
-        # BUG: Should be col("hcp.state_upper") == col("brick.state_upper")
-        # Instead, we're allowing cross-state matches for some records
-        when(col("hcp.hcp_id") % 100 == 0, lit(True))  # Every 100th HCP gets wrong state
-        .otherwise(col("hcp.state_upper") == col("brick.state_upper")),
+        col("hcp.state_upper") == col("brick.state_upper"),
         "inner"
     ) \
     .withColumn("rank", row_number().over(Window.partitionBy("hcp.hcp_id").orderBy("brick.brick_id"))) \

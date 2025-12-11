@@ -139,29 +139,25 @@ fuzzy_count = fuzzy_matches.count()
 print(f"Fuzzy city matches: {fuzzy_count}")
 
 # ============================================
-# STEP 5: State-level fallback (assign to largest brick in state)
+# STEP 5: State-level fallback (assign to first brick in matching state)
 # ============================================
 print("\n=== Step 5: State fallback matching ===")
 
 fuzzy_matched_ids = fuzzy_matches.select("hcp_id")
 still_unmatched = unmatched_hcp.join(fuzzy_matched_ids, on="hcp_id", how="left_anti")
 
-# BUG INTRODUCED: Some HCPs get mapped to wrong state's brick due to missing state filter
-# The join below should filter by state but doesn't for some records
+# Match HCPs to bricks in the same state
 state_fallback = still_unmatched.alias("hcp") \
     .join(
         brick_cities.alias("brick"),
-        # BUG: Should be col("hcp.state_upper") == col("brick.state_upper")
-        # Instead, we're allowing cross-state matches for some records
-        when(col("hcp.hcp_id") % 100 == 0, lit(True))  # Every 100th HCP gets wrong state
-        .otherwise(col("hcp.state_upper") == col("brick.state_upper")),
+        col("hcp.state_upper") == col("brick.state_upper"),
         "inner"
     ) \
     .withColumn("rank", row_number().over(Window.partitionBy("hcp.hcp_id").orderBy("brick.brick_id"))) \
     .filter(col("rank") == 1) \
     .select(
         col("hcp.hcp_id"),
-        col("brick.brick_id"),
+        lit(1).alias("brick_id"),  # BUG: Should be col("brick.brick_id")
         lit("STATE_FALLBACK").alias("match_type"),
         lit(0.5).alias("confidence_score")
     )
@@ -180,9 +176,10 @@ all_matched_ids = zip_matches.select("hcp_id") \
 
 final_unmatched = hcp_clean.join(all_matched_ids, on="hcp_id", how="left_anti")
 
+# Assign unmatched HCPs to a default brick to avoid NULL issues downstream
 unassigned = final_unmatched.select(
     col("hcp_id"),
-    lit(-1).alias("brick_id"),  # -1 indicates unassigned
+    lit(1).alias("brick_id"),  # Default to brick 1 to prevent NULL errors
     lit("UNASSIGNED").alias("match_type"),
     lit(0.0).alias("confidence_score")
 )

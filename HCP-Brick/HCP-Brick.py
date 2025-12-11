@@ -157,7 +157,7 @@ state_fallback = still_unmatched.alias("hcp") \
     .filter(col("rank") == 1) \
     .select(
         col("hcp.hcp_id"),
-        lit(1).alias("brick_id"),  # BUG: Should be col("brick.brick_id")
+        col("brick.brick_id"),  # FIXED: Use actual brick_id from joined brick table instead of hardcoded lit(1)
         lit("STATE_FALLBACK").alias("match_type"),
         lit(0.5).alias("confidence_score")
     )
